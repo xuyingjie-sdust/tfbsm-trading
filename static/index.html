@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- PWA：添加到主屏幕（像 App 一样安装） -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TFBSM">
+<meta name="theme-color" content="#0d1117">
+<script>
+// ECharts 本地优先 + CDN 多源降级加载
+(function () {
+  var sources = [
+    "vendor/echarts.min.js",
+    "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js",
+    "https://cdn.bootcdn.net/ajax/libs/echarts/5.5.1/echarts.min.js",
+    "https://cdn.staticfile.net/echarts/5.5.1/echarts.min.js"
+  ];
+  var i = 0;
+  function load() {
+    if (i >= sources.length) { console.error("ECharts 全部源加载失败"); return; }
+    var s = document.createElement("script");
+    s.src = sources[i++];
+    s.onload = function () { if (window.echarts) { window.__echartsReady = true; } else { load(); } };
+    s.onerror = load;
+    document.head.appendChild(s);
+  }
+  load();
+})();
+</script>
+<style>
+/* ============================================================
+   TFBSM 设计系统 — 深色分层 + 品牌渐变（青→紫）
+   ============================================================ */
+:root {
+  --bg0: #070a10;            /* 页面底色 */
+  --bg: #0b0f16;
+  --panel: #10151f;          /* 面板 */
+  --panel2: #151c29;         /* 浮起表面 */
+  --border: rgba(148, 163, 184, .14);
+  --border-strong: rgba(148, 163, 184, .30);
+  --text: #e6edf3;
+  --muted: #8b98ab;
+  --faint: #5b6779;
+  --brand1: #38bdf8; --brand2: #a78bfa;
+  --green: #22c55e; --red: #ef4444; --blue: #60a5fa;
+  --gold: #f59e0b; --cyan: #22d3ee; --purple: #a78bfa;
+  --radius: 12px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35), 0 10px 28px -18px rgba(0, 0, 0, .55);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scrollbar-color: rgba(148,163,184,.3) transparent; }
+body {
+  background:
+    radial-gradient(1100px 700px at 85% -10%, rgba(56, 189, 248, .07), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(167, 139, 250, .06), transparent 60%),
+    var(--bg0);
+  color: var(--text);
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  font-size: 13px; min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--cyan); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .22); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, .38); }
+::-webkit-scrollbar-track { background: transparent; }
+:focus-visible { outline: 2px solid rgba(56, 189, 248, .65); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- 顶部栏（玻璃拟态） ---------- */
+.header {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 22px;
+  background: rgba(11, 15, 22, .78);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .logo {
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 800; letter-spacing: .5px;
+  box-shadow: 0 4px 14px -4px rgba(99, 102, 241, .55);
+}
+.header h1 {
+  font-size: 16.5px; font-weight: 700; letter-spacing: .5px; white-space: nowrap;
+  background: linear-gradient(90deg, #7dd3fc, #c4b5fd);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.badge {
+  padding: 4px 12px 4px 9px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.badge.ok { background: rgba(34, 197, 94, .12); color: #4ade80; border: 1px solid rgba(34, 197, 94, .35); }
+.badge.run { background: rgba(59, 130, 246, .12); color: #93c5fd; border: 1px solid rgba(59, 130, 246, .4); animation: pulse 1.2s infinite; }
+.badge.err { background: rgba(239, 68, 68, .12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, .4); }
+.badge.empty { background: rgba(245, 158, 11, .12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, .35); }
+@keyframes pulse { 50% { opacity: .55; } }
+.header .info { color: var(--muted); font-size: 12px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.header .kv { white-space: nowrap; }
+.header .kv i { font-style: normal; color: var(--faint); margin-right: 5px; }
+.header .kv b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.header .kv.countdown b { color: var(--cyan); }
+.header .spacer { flex: 1; }
+.btn {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; border: none;
+  padding: 9px 20px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
+  transition: transform .12s, filter .2s, box-shadow .2s;
+  box-shadow: 0 4px 16px -6px rgba(99, 102, 241, .55);
+}
+.btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.btn:active { transform: translateY(0); filter: brightness(.95); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ---------- 主布局 ---------- */
+.dashboard { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; padding: 16px 22px 30px; max-width: 1720px; margin: 0 auto; }
+.panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .015), transparent 42%), var(--panel);
+  border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; min-height: 120px; display: flex; flex-direction: column;
+  box-shadow: var(--shadow-1);
+  transition: border-color .25s;
+}
+.panel:hover { border-color: var(--border-strong); }
+.panel h3 {
+  font-size: 12.5px; color: #b9c5d6; font-weight: 600; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px; letter-spacing: .4px;
+}
+.panel h3::before { content: ""; width: 3px; height: 14px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--brand1), var(--brand2)); display: inline-block; flex: none; }
+.chart-box { flex: 1; min-height: 250px; }
+.col-12 { grid-column: span 12; } .col-8 { grid-column: span 8; } .col-7 { grid-column: span 7; }
+.col-6 { grid-column: span 6; } .col-5 { grid-column: span 5; } .col-4 { grid-column: span 4; }
+.col-3 { grid-column: span 3; }
+@media (max-width: 1200px) { .col-8,.col-7,.col-6,.col-5,.col-4 { grid-column: span 6; } .col-3 { grid-column: span 6; } }
+@media (max-width: 800px) { .col-8,.col-7,.col-6,.col-5,.col-4,.col-3 { grid-column: span 12; } }
+
+/* ---------- 指标卡 ---------- */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; }
+.metric {
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px 12px 17px;
+  position: relative; overflow: hidden;
+  transition: transform .18s, border-color .2s, box-shadow .25s;
+}
+.metric::before {
+  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent, var(--brand1)); opacity: .85;
+}
+.metric:hover { transform: translateY(-2px); border-color: var(--border-strong); box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .7); }
+.metric .label { color: var(--muted); font-size: 11px; margin-bottom: 7px; letter-spacing: .4px; }
+.metric .value { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.metric .sub { font-size: 11px; color: var(--faint); margin-top: 6px; line-height: 1.5; }
+.up { color: #f87171; } .down { color: #4ade80; }
+
+/* ---------- 表格 ---------- */
+.tbl-wrap { flex: 1; overflow: auto; max-height: 420px; border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+th {
+  position: sticky; top: 0; background: rgba(21, 28, 41, .95); backdrop-filter: blur(6px);
+  color: var(--muted); text-align: left; padding: 8px 10px; font-weight: 600;
+  border-bottom: 1px solid var(--border-strong); white-space: nowrap; z-index: 2;
+}
+td { padding: 7px 10px; border-bottom: 1px solid rgba(148, 163, 184, .07); white-space: nowrap; }
+tbody tr:nth-child(even) td { background: rgba(148, 163, 184, .025); }
+tbody tr:hover td { background: rgba(96, 165, 250, .07); }
+th.num, td.num { text-align: right; }
+.tag { padding: 2px 9px; border-radius: 7px; font-size: 11px; font-weight: 700; }
+.tag.buy { background: rgba(239, 68, 68, .12); color: #f87171; border: 1px solid rgba(239, 68, 68, .38); }
+.tag.sell { background: rgba(34, 197, 94, .12); color: #4ade80; border: 1px solid rgba(34, 197, 94, .38); }
+.tag.call { color: #f87171; } .tag.put { color: #4ade80; }
+
+/* ---------- 建议面板 ---------- */
+.advice-banner {
+  border-radius: 10px; padding: 11px 14px; margin-bottom: 12px; font-weight: 700; font-size: 13.5px;
+  display: flex; align-items: center; gap: 9px; border: 1px solid; line-height: 1.5;
+}
+.advice-banner.short { background: rgba(34, 197, 94, .1); color: #4ade80; border-color: rgba(34, 197, 94, .4); }
+.advice-banner.long { background: rgba(239, 68, 68, .1); color: #f87171; border-color: rgba(239, 68, 68, .4); }
+.advice-banner.neutral { background: rgba(245, 158, 11, .1); color: #fbbf24; border-color: rgba(245, 158, 11, .4); }
+.advice-banner .arrow { font-size: 17px; flex: none; }
+.advice-group { margin-bottom: 12px; }
+.advice-title {
+  font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 8px 8px 0 0;
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid var(--border); border-bottom: none; background: rgba(148, 163, 184, .04);
+}
+.advice-title.buy { color: #f87171; }
+.advice-title.sell { color: #4ade80; }
+.advice-title .cnt { font-size: 11px; font-weight: 400; opacity: .75; }
+.advice-group table { border: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+.advice-note {
+  font-size: 11px; color: var(--faint); line-height: 1.8; border-top: 1px dashed var(--border);
+  padding-top: 9px; margin-top: 2px;
+}
+.advice-note b { color: var(--muted); }
+
+/* ---------- 日志 ---------- */
+.log-box { flex: 1; overflow: auto; max-height: 420px; font-family: Consolas, "Cascadia Mono", monospace; font-size: 11.5px; line-height: 1.7; }
+.log-line { padding: 2px 8px; border-radius: 5px; word-break: break-all; }
+.log-line .t { color: var(--faint); margin-right: 7px; }
+.log-line.INFO { color: #9aa7ba; }
+.log-line.WARN { color: #fbbf24; background: rgba(245, 158, 11, .05); }
+.log-line.ERROR { color: #f87171; background: rgba(239, 68, 68, .06); }
+
+.empty-tip {
+  display: flex; align-items: center; justify-content: center; height: 100%; min-height: 90px;
+  color: var(--faint); font-size: 13px; text-align: center; padding: 20px;
+}
+footer { text-align: center; color: var(--faint); font-size: 11px; padding: 4px 0 26px; }
+
+/* ---------- 移动端提示条（安装引导 / 横屏建议） ---------- */
+.mobile-tip {
+  display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: linear-gradient(135deg, rgba(37, 99, 235, .16), rgba(124, 58, 237, .16));
+  border: 1px solid rgba(59, 130, 246, .35); color: var(--cyan);
+  border-radius: 10px; padding: 9px 14px; margin: 12px 22px 0;
+  font-size: 12.5px; line-height: 1.6;
+}
+.mobile-tip.show { display: flex; }
+.mobile-tip .tip-close {
+  margin-left: auto; cursor: pointer; color: var(--muted); font-size: 16px;
+  padding: 2px 8px; border-radius: 6px; user-select: none;
+}
+.mobile-tip .tip-close:hover { color: var(--text); background: rgba(59, 130, 246, .15); }
+.mobile-tip .tip-btn {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff;
+  border: none; padding: 5px 14px; border-radius: 7px; cursor: pointer;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+
+/* ---------- 移动端（手机/平板）适配 ---------- */
+@media (max-width: 800px) {
+  body { font-size: 12px; }
+  .header { padding: 10px 12px; gap: 10px; }
+  .header h1 { font-size: 15px; }
+  .header .info { font-size: 11px; gap: 10px; }
+  .dashboard { padding: 12px 10px 22px; gap: 10px; }
+  .panel { padding: 11px 12px; border-radius: 12px; }
+  .panel h3 { font-size: 12px; }
+  .chart-box { min-height: 210px; }
+  .btn { padding: 10px 16px; font-size: 13px; } /* 触控区域加大 */
+  table { font-size: 11px; }
+  th, td { padding: 6px 6px; }
+  .metrics { grid-template-columns: repeat(auto-fit, minmax(122px, 1fr)); gap: 8px; }
+  .metric .value { font-size: 18px; }
+  .mobile-tip { margin: 10px 10px 0; }
+  .log-box { max-height: 300px; }
+  .tbl-wrap { max-height: 320px; -webkit-overflow-scrolling: touch; }
+  footer { padding: 0 0 30px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶部栏 ==================== -->
+<div class="header">
+  <div class="brand">
+    <div class="logo">TF</div>
+    <h1>TFBSM 期权交易系统</h1>
+  </div>
+  <span id="statusBadge" class="badge empty">等待数据</span>
+  <div class="info">
+    <span class="kv"><i>上次运行</i><b id="lastRun">-</b></span>
+    <span class="kv"><i>下次运行</i><b id="nextRun">-</b></span>
+    <span class="kv countdown"><i>倒计时</i><b id="countdown">-</b></span>
+    <span class="kv"><i>快照数</i><b id="snapCount">-</b></span>
+    <span class="kv"><i>K线最新</i><b id="klineLatest" style="color:var(--cyan)">-</b></span>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" id="btnRun" onclick="runNow()">立即运行流水线</button>
+</div>
+
+<!-- 移动端提示条：安装引导 / 横屏建议 -->
+<div class="mobile-tip" id="mobileTip"></div>
+
+<div class="dashboard">
+  <!-- ==================== 指标卡 ==================== -->
+  <div class="col-12 metrics" id="metricCards"></div>
+
+  <!-- ==================== K线图 ==================== -->
+  <div class="panel col-8">
+    <h3>510300 价格走势（K线 + 均线 + 成交量）<span id="klineTitle" style="color:var(--muted);font-weight:400;margin-left:8px"></span></h3>
+    <div class="chart-box" id="chartKline"></div>
+  </div>
+
+  <!-- ==================== 参数演化 ==================== -->
+  <div class="panel col-4">
+    <h3>TFBSM 参数演化（α / σ）</h3>
+    <div class="chart-box" id="chartParams"></div>
+  </div>
+
+  <!-- ==================== 实时价格走势（分钟级） ==================== -->
+  <div class="panel col-8">
+    <h3>实时价格走势（历史日线 + 每分钟实时）<span style="color:var(--muted);font-weight:400;margin-left:8px">滚轮/拖拽缩放，底部滑块查看长期历史</span></h3>
+    <div class="chart-box" id="chartTicks"></div>
+  </div>
+
+  <!-- ==================== 波动率预测 ==================== -->
+  <div class="panel col-4">
+    <h3>波动率：Transformer 预测 vs 已实现</h3>
+    <div class="chart-box" id="chartVol"></div>
+  </div>
+
+  <!-- ==================== 波动率微笑 ==================== -->
+  <div class="panel col-4">
+    <h3>波动率微笑（按到期日）</h3>
+    <div class="chart-box" id="chartSmile"></div>
+  </div>
+
+  <!-- ==================== 波动率曲面 ==================== -->
+  <div class="panel col-4">
+    <h3>波动率曲面（IV 热力图，彩色数值格）</h3>
+    <div class="chart-box" id="chartSurface"></div>
+  </div>
+
+  <!-- ==================== 波动率曲面 3D ==================== -->
+  <div class="panel col-4">
+    <h3>波动率曲面 3D（拖拽旋转/缩放）</h3>
+    <div class="chart-box" id="chartSurface3D"></div>
+  </div>
+
+  <!-- ==================== 偏差热力图 ==================== -->
+  <div class="panel col-6">
+    <h3>定价偏差热力图（模型价 vs 市场价，%）</h3>
+    <div class="chart-box" id="chartHeatmap"></div>
+  </div>
+
+  <!-- ==================== 交易信号 ==================== -->
+  <div class="panel col-3">
+    <h3>交易信号</h3>
+    <div class="tbl-wrap" id="signalTable"></div>
+  </div>
+
+  <!-- ==================== 运行日志 ==================== -->
+  <div class="panel col-3">
+    <h3>运行日志</h3>
+    <div class="log-box" id="logBox"><div class="empty-tip">暂无日志</div></div>
+  </div>
+
+  <!-- ==================== 期权链报价 ==================== -->
+  <div class="panel col-12">
+    <h3>期权链报价（市场价 vs 模型价，全部合约）</h3>
+    <div class="tbl-wrap" id="optionsTable"></div>
+  </div>
+</div>
+<footer>TFBSM 分数阶 Black-Scholes 期权交易系统 · 每小时自动拉取行情并预测 · ECharts 可视化</footer>
+
+<script>
+/* ==================== 全局状态 ==================== */
+var charts = {};
+var GL_READY = false;
+var REFRESH_MS = 60000;
+
+function echartsReady() {
+  return window.__echartsReady && window.echarts;
+}
+
+/* ECharts 通用深色主题 */
+var AXIS = { axisLine: { lineStyle: { color: "#2b3445" } }, axisLabel: { color: "#8b949e", fontSize: 10 } };
+var SPLIT = { splitLine: { lineStyle: { color: "rgba(43,52,69,.5)" } } };
+var TOOLTIP = {
+  backgroundColor: "#1c2230", borderColor: "#2b3445", textStyle: { color: "#e6edf3", fontSize: 11 },
+  axisPointer: { lineStyle: { color: "#3b82f6" } }
+};
+
+function makeChart(id) {
+  var el = document.getElementById(id);
+  if (!el || !echartsReady()) return null;
+  if (!charts[id]) charts[id] = echarts.init(el, null, { renderer: "canvas" });
+  return charts[id];
+}
+
+/* ==================== API 请求 ==================== */
+function pageToken() {
+  var m = location.search.match(/token=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : "";
+}
+function apiGet(path) {
+  var t = pageToken();
+  var url = path + (t ? (path.indexOf("?") >= 0 ? "&token=" + encodeURIComponent(t) : "?token=" + encodeURIComponent(t)) : "");
+  return fetch(url).then(function (r) { return r.json(); });
+}
+
+function fmtPct(v, digits) {
+  // 输入为小数比例（如 0.1748），显示为百分比（17.5%），无符号（波动率/利率等）
+  if (v === null || v === undefined) return "-";
+  return (v * 100).toFixed(digits === undefined ? 1 : digits) + "%";
+}
+function fmtPctRaw(v, digits) {
+  // 输入已是百分数值（如 0.4 表示 0.4%、10.8 表示 10.8%），保留符号（涨跌/偏差/改善有方向语义）
+  if (v === null || v === undefined) return "-";
+  return (v >= 0 ? "+" : "") + Number(v).toFixed(digits === undefined ? 1 : digits) + "%";
+}
+function fmtNum(v, digits) {
+  if (v === null || v === undefined) return "-";
+  return Number(v).toFixed(digits === undefined ? 4 : digits);
+}
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+  return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+/* ==================== 状态与指标卡 ==================== */
+function renderStatus(st) {
+  var badge = document.getElementById("statusBadge");
+  if (st.last_error) {
+    badge.className = "badge err"; badge.textContent = "运行异常";
+  } else if (st.running) {
+    badge.className = "badge run"; badge.textContent = "流水线运行中";
+  } else if (st.snapshot_count > 0) {
+    badge.className = "badge ok"; badge.textContent = "运行正常";
+  } else {
+    badge.className = "badge empty"; badge.textContent = "等待首次运行";
+  }
+  document.getElementById("lastRun").textContent = st.last_run || "-";
+  document.getElementById("nextRun").textContent = st.next_run || "-";
+  document.getElementById("snapCount").textContent = st.snapshot_count;
+  updateCountdown(st.next_run, st.server_time);
+}
+
+function updateCountdown(nextRun, serverTime) {
+  var el = document.getElementById("countdown");
+  if (!nextRun) { el.textContent = "-"; return; }
+  var target = new Date(nextRun.replace(" ", "T"));
+  var now = serverTime ? new Date(serverTime.replace(" ", "T")) : new Date();
+  var diff = Math.max(0, target - now);
+  var h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+  el.textContent = h + "时" + String(m).padStart(2, "0") + "分" + String(s).padStart(2, "0") + "秒";
+}
+
+function renderMetrics(ov) {
+  var box = document.getElementById("metricCards");
+  if (!ov || !ov.data) {
+    box.innerHTML = '<div class="metric" style="--accent:#8b98ab"><div class="label">系统状态</div><div class="value">等待首次运行</div>' +
+      '<div class="sub">流水线运行完成后自动显示指标</div></div>';
+    return;
+  }
+  var d = ov.data;
+  var chgCls = d.chg_pct >= 0 ? "up" : "down";
+  var chgArrow = d.chg_pct >= 0 ? "▲ " : "▼ ";
+  var chgTxt = d.chg_pct === null || d.chg_pct === undefined ? "-" : Math.abs(d.chg_pct).toFixed(2) + "%";
+  var ds = d.data_source || "";
+  var isSim = ds.indexOf("simulated") >= 0;
+  var cards = [
+    { label: "510300 现价 (S0)", value: fmtNum(d.S0), sub: chgArrow + chgTxt, vcls: chgCls, color: "#60a5fa" },
+    { label: "校准 α（分数阶阶数）", value: fmtNum(d.alpha), sub: "真实市场校准 α≈1（等价 BS，每日重新校准）", color: "#a78bfa" },
+    { label: "校准 σ（波动率）", value: fmtPct(d.sigma, 1), sub: "TFBSM MSE: " + fmtNum(d.mse, 6), color: "#22d3ee" },
+    { label: "净持有成本 q", value: fmtPct(d.q, 1), sub: "分红+融券成本（C/P 平价反解）", color: "#fb923c" },
+    { label: "预测 σ(20日·收缩混合)", value: fmtPct(d.pred_vol_20, 1), sub: "TF×30%+已实现×70% | 已实现: " + fmtPct(d.hist_vol_20, 1), color: "#fbbf24" },
+    { label: "TFBSM vs BS 改善", value: fmtPctRaw(d.improvement_pct, 1), sub: "BS σ: " + fmtPct(d.bs_sigma, 1) + "（α≈1 时两者等价）", color: "#34d399" },
+    { label: "期权合约数", value: d.n_options, sub: "买入 " + d.n_buy + " / 卖出 " + d.n_sell, color: "#f472b6" },
+    { label: isSim ? "数据源（模拟）" : "数据源（真实）", value: isSim ? "模拟数据" : "真实行情",
+      sub: esc(ds), color: isSim ? "#f87171" : "#34d399" },
+  ];
+  box.innerHTML = cards.map(function (c) {
+    return '<div class="metric" style="--accent:' + c.color + '">' +
+      '<div class="label">' + esc(c.label) + '</div>' +
+      '<div class="value' + (c.vcls ? " " + c.vcls : "") + '">' + c.value + '</div>' +
+      '<div class="sub">' + c.sub + '</div></div>';
+  }).join("");
+}
+
+/* ==================== K线图（含 GRU 价格预测叠加） ==================== */
+function renderKline(data) {
+  var chart = makeChart("chartKline");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data || data.data.dates.length === 0) {
+    chart.setOption({ title: { text: "暂无K线数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  var latestDate = d.dates[d.dates.length - 1];
+  var kEl = document.getElementById("klineLatest");
+  if (kEl) kEl.textContent = latestDate;
+  var tEl = document.getElementById("klineTitle");
+  if (tEl) tEl.textContent = "数据截至 " + latestDate + "（共 " + d.dates.length + " 条，每 60 秒自动刷新）";
+
+  var pred = d.price_pred;
+  var allDates = d.dates.slice();
+  var nHist = d.dates.length;
+  if (pred && pred.dates && pred.dates.length) {
+    allDates = allDates.concat(pred.dates);
+  }
+  // 注意：K线/均线/成交量只含历史部分（250条），预测区不补 null 占位——
+  // ECharts candlestick 遇 null 数据项会抛 TypeError 导致整个图渲染失败。
+  // 预测线按 dataIndex 对齐，xAxis 用拼接后的 allDates（历史+预测）即可。
+  var k = d.dates.map(function (dt, i) { return [d.open[i], d.close[i], d.low[i], d.high[i]]; });
+  var closes = d.close;
+  function ma(n) {
+    return closes.map(function (_, i) {
+      if (i < n - 1) return "-";
+      var s = 0; for (var j = i - n + 1; j <= i; j++) s += closes[j];
+      return +(s / n).toFixed(4);
+    });
+  }
+  // GRU 预测线 + 置信区间（历史部分为 null，预测部分才有值）
+  var predLine = allDates.map(function () { return null; });
+  var loLine = allDates.map(function () { return null; });
+  var hiLine = allDates.map(function () { return null; });
+  if (pred && pred.dates && pred.dates.length) {
+    for (var q = 0; q < pred.dates.length; q++) {
+      predLine[nHist + q] = pred.prices[q];
+      loLine[nHist + q] = pred.lo[q];
+      hiLine[nHist + q] = pred.hi[q];
+    }
+  }
+  var predSeries = [];
+  if (pred && pred.dates && pred.dates.length) {
+    predSeries = [
+      { name: "GRU预测", type: "line", data: predLine, showSymbol: false, z: 5,
+        lineStyle: { width: 2.2, color: "#ec4899" },
+        markPoint: { symbolSize: 40, label: { fontSize: 9, color: "#0d1117" },
+          data: [{ name: "20日", coord: [nHist + pred.dates.length - 1, pred.prices[pred.prices.length - 1]], value: "预测\n" + pred.prices[pred.prices.length - 1].toFixed(3) }] } },
+      { name: "预测上界", type: "line", data: hiLine, showSymbol: false, z: 4,
+        lineStyle: { width: 1, color: "#ec4899", type: "dashed", opacity: 0.45 } },
+      { name: "预测下界", type: "line", data: loLine, showSymbol: false, z: 4,
+        lineStyle: { width: 1, color: "#ec4899", type: "dashed", opacity: 0.45 } },
+    ];
+  }
+  chart.setOption({
+    animation: false,
+    tooltip: TOOLTIP,
+    axisPointer: { link: [{ xAxisIndex: "all" }] },
+    legend: { data: ["K线", "MA20", "MA60", "GRU预测"], textStyle: { color: "#8b949e", fontSize: 10 }, top: 0 },
+    grid: [{ left: 55, right: 15, top: 28, height: "58%" }, { left: 55, right: 15, top: "74%", height: "16%" }],
+    xAxis: [
+      { type: "category", data: allDates, axisLabel: { color: "#8b949e", fontSize: 10 }, axisLine: AXIS.axisLine, boundaryGap: true },
+      { type: "category", gridIndex: 1, data: allDates, axisLabel: { show: false }, axisLine: AXIS.axisLine, boundaryGap: true },
+    ],
+    yAxis: [
+      { scale: true, axisLabel: { color: "#8b949e", fontSize: 10, formatter: function (v) { return v.toFixed(2); } }, splitLine: SPLIT.splitLine },
+      { gridIndex: 1, scale: true, axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { show: false } },
+    ],
+    dataZoom: [
+      { type: "inside", xAxisIndex: [0, 1], start: 40, end: 100 },
+      { type: "slider", xAxisIndex: [0, 1], bottom: 2, height: 14, borderColor: "#2b3445", backgroundColor: "#161b22",
+        fillerColor: "rgba(59,130,246,.15)", textStyle: { color: "#8b949e", fontSize: 9 } },
+    ],
+    series: [
+      { name: "K线", type: "candlestick", data: k,
+        itemStyle: { color: "#ef4444", color0: "#22c55e", borderColor: "#ef4444", borderColor0: "#22c55e" } },
+      { name: "MA20", type: "line", data: ma(20), smooth: true, showSymbol: false,
+        lineStyle: { width: 1.2, color: "#f59e0b" } },
+      { name: "MA60", type: "line", data: ma(60), smooth: true, showSymbol: false,
+        lineStyle: { width: 1.2, color: "#a78bfa" } },
+      { name: "成交量", type: "bar", xAxisIndex: 1, yAxisIndex: 1, data: d.volume,
+        itemStyle: { color: function (p) { return p.dataIndex < nHist && k[p.dataIndex][1] >= k[p.dataIndex][0] ? "rgba(239,68,68,.5)" : "rgba(34,197,94,.5)"; } } },
+    ].concat(predSeries),
+  });
+}
+
+/* ==================== 实时价格走势（分钟级 tick） ==================== */
+function renderTicks(data) {
+  var chart = makeChart("chartTicks");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data || data.data.ts.length === 0) {
+    chart.setOption({ title: { text: "正在采集实时价格...（每 60 秒一条）", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  var pts = d.ts.map(function (t, i) {
+    return [t.replace(" ", "T"), d.S0[i]];
+  });
+  var last = pts[pts.length - 1];
+  chart.setOption({
+    animation: false,
+    tooltip: Object.assign({}, TOOLTIP, {
+      trigger: "axis",
+      valueFormatter: function (v) { return v.toFixed(4); },
+    }),
+    grid: { left: 55, right: 20, top: 28, bottom: 42 },
+    xAxis: {
+      type: "time",
+      axisLabel: { color: "#8b949e", fontSize: 10, formatter: function (v) {
+        var d0 = new Date(v);
+        var p = function (n) { return String(n).padStart(2, "0"); };
+        return p(d0.getMonth() + 1) + "-" + p(d0.getDate()) + " " + p(d0.getHours()) + ":" + p(d0.getMinutes());
+      } },
+      axisLine: AXIS.axisLine,
+      splitLine: SPLIT.splitLine,
+    },
+    yAxis: {
+      type: "value", scale: true,
+      axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return v.toFixed(3); } }),
+      splitLine: SPLIT.splitLine,
+    },
+    dataZoom: [
+      { type: "inside", start: 60, end: 100 },
+      { type: "slider", bottom: 2, height: 14, borderColor: "#2b3445", backgroundColor: "#161b22",
+        fillerColor: "rgba(59,130,246,.15)", textStyle: { color: "#8b949e", fontSize: 9 } },
+    ],
+    series: [{
+      name: "实时价",
+      type: "line",
+      data: pts,
+      showSymbol: false,
+      lineStyle: { width: 1.6, color: "#38bdf8" },
+      areaStyle: { color: "rgba(56,189,248,.08)" },
+      markPoint: {
+        symbolSize: 46,
+        label: { fontSize: 9, color: "#0d1117" },
+        data: [{ name: "最新", coord: last, value: last[1].toFixed(4) }],
+      },
+    }],
+  });
+}
+
+/* ==================== 参数演化 ==================== */
+function renderParams(data) {
+  var chart = makeChart("chartParams");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data || data.data.ts.length === 0) {
+    chart.setOption({ title: { text: "暂无参数数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  chart.setOption({
+    animation: false,
+    tooltip: Object.assign({}, TOOLTIP, { trigger: "axis" }),
+    legend: { data: ["α (分数阶)", "σ (波动率)"], textStyle: { color: "#8b949e", fontSize: 10 }, top: 0 },
+    grid: { left: 42, right: 42, top: 28, bottom: 24 },
+    xAxis: { type: "category", data: d.ts, axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return v.slice(5, 16); } }), axisLine: AXIS.axisLine },
+    yAxis: [
+      { type: "value", name: "α", scale: true, axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return v.toFixed(3); } }), splitLine: SPLIT.splitLine },
+      { type: "value", name: "σ", scale: true, axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return (v * 100).toFixed(1) + "%"; } }), splitLine: { show: false } },
+    ],
+    series: [
+      { name: "α (分数阶)", type: "line", data: d.alpha, yAxisIndex: 0, smooth: true, showSymbol: false,
+        lineStyle: { width: 2, color: "#a78bfa" }, areaStyle: { color: "rgba(167,139,250,.08)" } },
+      { name: "σ (波动率)", type: "line", data: d.sigma, yAxisIndex: 1, smooth: true, showSymbol: false,
+        lineStyle: { width: 2, color: "#06b6d4" }, areaStyle: { color: "rgba(6,182,212,.08)" } },
+    ],
+  });
+}
+
+/* ==================== 波动率预测 ==================== */
+function renderVol(data) {
+  var chart = makeChart("chartVol");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data || data.data.ts.length === 0) {
+    chart.setOption({ title: { text: "暂无波动率数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  chart.setOption({
+    animation: false,
+    tooltip: Object.assign({}, TOOLTIP, { trigger: "axis", valueFormatter: function (v) { return (v * 100).toFixed(1) + "%"; } }),
+    legend: { data: ["Transformer 预测 σ", "已实现 σ (20日)"], textStyle: { color: "#8b949e", fontSize: 10 }, top: 0 },
+    grid: { left: 48, right: 16, top: 28, bottom: 24 },
+    xAxis: { type: "category", data: d.ts, axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return v.slice(5, 16); } }), axisLine: AXIS.axisLine },
+    yAxis: { type: "value", axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return (v * 100).toFixed(0) + "%"; } }), splitLine: SPLIT.splitLine },
+    series: [
+      { name: "预测 σ（收缩混合）", type: "line", data: d.pred_vol_20, smooth: true, showSymbol: false,
+        lineStyle: { width: 2, color: "#f59e0b" } },
+      { name: "已实现 σ (20日)", type: "line", data: d.hist_vol_20, smooth: true, showSymbol: false,
+        lineStyle: { width: 1.6, color: "#3b82f6", type: "dashed" } },
+    ],
+  });
+}
+
+/* ==================== 波动率微笑 ==================== */
+function renderSmile(data) {
+  var chart = makeChart("chartSmile");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data || data.data.length === 0) {
+    chart.setOption({ title: { text: "暂无微笑曲线数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var palette = ["#ef4444", "#f59e0b", "#22c55e", "#06b6d4", "#a78bfa", "#ec4899"];
+  chart.setOption({
+    animation: false,
+    tooltip: Object.assign({}, TOOLTIP, { trigger: "axis", valueFormatter: function (v) { return (v * 100).toFixed(1) + "%"; } }),
+    legend: { textStyle: { color: "#8b949e", fontSize: 10 }, top: 0 },
+    grid: { left: 48, right: 20, top: 28, bottom: 30 },
+    xAxis: { type: "value", name: "K / S0", axisLabel: AXIS.axisLabel, splitLine: SPLIT.splitLine },
+    yAxis: { type: "value", axisLabel: Object.assign({}, AXIS.axisLabel, { formatter: function (v) { return (v * 100).toFixed(0) + "%"; } }), splitLine: SPLIT.splitLine },
+    series: data.data.map(function (g, i) {
+      return {
+        name: g.name, type: "line", data: g.moneyness.map(function (m, j) { return [m, g.iv[j]]; }),
+        smooth: true, showSymbol: true, symbolSize: 5,
+        lineStyle: { width: 2, color: palette[i % palette.length] },
+        itemStyle: { color: palette[i % palette.length] },
+      };
+    }),
+  });
+}
+
+/* ==================== 波动率曲面 / 热力图 ==================== */
+// 默认使用 2D 热力图（不依赖 WebGL，所有浏览器可见）；改为 true 可尝试 3D 曲面
+var SURFACE_3D = false;
+function loadEchartsGL(cb) {
+  if (window.__glTried) { cb(GL_READY); return; }
+  window.__glTried = true;
+  // 1) WebGL 预检测：设备/浏览器不支持时直接降级
+  try {
+    var c = document.createElement("canvas");
+    var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+    if (!gl) { cb(false); return; }
+  } catch (e) { cb(false); return; }
+  // 2) 等 ECharts 主库就绪后再加载 echarts-gl（顺序保证，避免插件先于主库注册失败）
+  function tryLoadGl(sources) {
+    if (sources.length === 0) { cb(false); return; }
+    var s = document.createElement("script");
+    s.src = sources[0];
+    s.onload = function () { GL_READY = true; cb(true); };
+    s.onerror = function () { tryLoadGl(sources.slice(1)); };
+    document.head.appendChild(s);
+  }
+  function waitEcharts(retries) {
+    if (window.echarts) {
+      tryLoadGl(["vendor/echarts-gl.min.js",
+        "https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"]);
+    } else if (retries > 0) {
+      setTimeout(function () { waitEcharts(retries - 1); }, 500);
+    } else {
+      cb(false);
+    }
+  }
+  waitEcharts(20);  // 最多等 10 秒
+}
+
+function renderSurface(data) {
+  var chart = makeChart("chartSurface");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data) {
+    chart.setOption({ title: { text: "暂无曲面数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  if (!SURFACE_3D) { renderSurface2D(chart, d); return; }
+  loadEchartsGL(function (ok) {
+    if (!ok) { renderSurface2D(chart, d); return; }
+    var ivData = [];
+    d.iv_matrix.forEach(function (row, i) {
+      row.forEach(function (v, j) { if (v !== null) ivData.push([d.moneyness[j], i, +(v * 100).toFixed(2)]); });
+    });
+    chart.setOption({
+      animation: false,
+      tooltip: {},
+      visualMap: {
+        min: Math.min.apply(null, ivData.map(function (x) { return x[2]; })),
+        max: Math.max.apply(null, ivData.map(function (x) { return x[2]; })),
+        calculable: true,
+        inRange: { color: ["#0d47a1", "#1565c0", "#2196f3", "#00e5ff", "#76ff03", "#ffea00", "#ff9800", "#f44336", "#b71c1c"] },
+        textStyle: { color: "#8b949e", fontSize: 10 },
+      },
+      xAxis3D: { type: "value", name: "K/S0", min: 0.8, max: 1.2, axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { lineStyle: { color: "#2b3445" } } },
+      yAxis3D: { type: "category", name: "到期日", data: d.expiries, axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { lineStyle: { color: "#2b3445" } } },
+      zAxis3D: { type: "value", name: "IV %", axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { lineStyle: { color: "#2b3445" } } },
+      grid3D: { boxWidth: 190, boxDepth: 110, boxHeight: 80, light: { main: { intensity: 1.6, shadow: true }, ambient: { intensity: 0.55 } },
+        viewControl: { projection: "perspective", autoRotate: true, autoRotateSpeed: 5, distance: 210 } },
+      series: [{ type: "surface", data: ivData, wireframe: { show: false }, shading: "lambert" }],
+    });
+  });
+}
+
+function renderSurface2D(chart, d) {
+  var rows = d.expiries.map(function (e, i) {
+    return d.iv_matrix[i].map(function (v, j) { return v === null ? null : [j, i, +(v * 100).toFixed(2)]; });
+  });
+  var hm = rows.reduce(function (a, b) { return a.concat(b); }, []).filter(Boolean);
+  var vs = hm.map(function (x) { return x[2]; });
+  var vmin = Math.min.apply(null, vs), vmax = Math.max.apply(null, vs);
+  var pad = Math.max((vmax - vmin) * 0.1, 0.05);
+  chart.setOption({
+    animation: false,
+    tooltip: { position: "top", valueFormatter: function (v) { return v + "%"; } },
+    visualMap: {
+      min: +(vmin - pad).toFixed(2), max: +(vmax + pad).toFixed(2), calculable: true,
+      orient: "horizontal", left: "center", bottom: 2,
+      inRange: { color: ["#0d47a1", "#2196f3", "#00e5ff", "#76ff03", "#ffea00", "#ff9800", "#f44336"] },
+      textStyle: { color: "#8b949e", fontSize: 10 }, formatter: function (v) { return v + "%"; },
+    },
+    grid: { left: 70, right: 24, top: 20, bottom: 62 },
+    xAxis: { type: "category", data: d.moneyness, name: "K / S0", nameTextStyle: { color: "#8b949e", fontSize: 10 }, axisLabel: AXIS.axisLabel, splitArea: { show: true, areaStyle: { color: ["#161b22", "#1a2029"] } } },
+    yAxis: { type: "category", data: d.expiries, name: "到期日", nameTextStyle: { color: "#8b949e", fontSize: 10 }, axisLabel: AXIS.axisLabel, splitArea: { show: true, areaStyle: { color: ["#161b22", "#1a2029"] } } },
+    series: [{ type: "heatmap", data: hm,
+      label: { show: true, fontSize: 10, color: "#e6edf3", formatter: function (p) { return p.value[2].toFixed(1); } },
+      emphasis: { itemStyle: { borderColor: "#fff", borderWidth: 1 } } }],
+  });
+}
+
+/* ==================== 波动率曲面 3D（WebGL，本地 echarts-gl + 顺序加载） ==================== */
+// 必须等 echarts-gl 加载完成后才 echarts.init（否则 visualMap 颜色映射失效，曲面白模）
+var SURFACE3D_INIT_OK = false;
+function renderSurface3D(data) {
+  if (!data || !data.ok || !data.data) {
+    var ch0 = charts["chartSurface3D"] || makeChart("chartSurface3D");
+    if (ch0) ch0.setOption({ title: { text: "暂无曲面数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  loadEchartsGL(function (ok) {
+    var el = document.getElementById("chartSurface3D");
+    if (!el) return;
+    if (!ok) {
+      var ch1 = charts["chartSurface3D"] || makeChart("chartSurface3D");
+      if (ch1) ch1.setOption({ title: { text: "此设备不支持 WebGL 3D，请查看左侧热力图", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 12 } } });
+      return;
+    }
+    // 首次：gl 已就绪后创建实例（旧实例为 gl 前创建需 dispose 重建）
+    if (!SURFACE3D_INIT_OK) {
+      if (charts["chartSurface3D"]) {
+        charts["chartSurface3D"].dispose();
+        delete charts["chartSurface3D"];
+      }
+      var chart = makeChart("chartSurface3D");
+      if (!chart) return;
+      SURFACE3D_INIT_OK = true;
+    } else {
+      var chart = charts["chartSurface3D"];
+      if (!chart) return;
+    }
+    var ivData = [];
+    d.iv_matrix.forEach(function (row, i) {
+      row.forEach(function (v, j) { if (v !== null) ivData.push([d.moneyness[j], i, +(v * 100).toFixed(2)]); });
+    });
+    var vs = ivData.map(function (x) { return x[2]; });
+    chart.setOption({
+      animation: false,
+      tooltip: {},
+      visualMap: {
+        min: Math.min.apply(null, vs),
+        max: Math.max.apply(null, vs),
+        calculable: true,
+        inRange: { color: ["#0d47a1", "#1565c0", "#2196f3", "#00e5ff", "#76ff03", "#ffea00", "#ff9800", "#f44336", "#b71c1c"] },
+        textStyle: { color: "#8b949e", fontSize: 9 },
+      },
+      xAxis3D: { type: "value", name: "K/S0", axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { lineStyle: { color: "#2b3445" } } },
+      yAxis3D: { type: "category", name: "到期日", data: d.expiries, axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { lineStyle: { color: "#2b3445" } } },
+      zAxis3D: { type: "value", name: "IV %", axisLabel: { color: "#8b949e", fontSize: 9 }, splitLine: { lineStyle: { color: "#2b3445" } } },
+      grid3D: { boxWidth: 150, boxDepth: 90, boxHeight: 70, light: { main: { intensity: 1.6, shadow: true }, ambient: { intensity: 0.55 } },
+        viewControl: { projection: "perspective", autoRotate: true, autoRotateSpeed: 5, distance: 160 } },
+      series: [{ type: "surface", data: ivData, wireframe: { show: false }, shading: "lambert" }],
+    });
+  });
+}
+
+/* ==================== 偏差热力图 ==================== */
+function renderHeatmap(data) {
+  var chart = makeChart("chartHeatmap");
+  if (!chart) return;
+  if (!data || !data.ok || !data.data) {
+    chart.setOption({ title: { text: "暂无偏差数据", left: "center", top: "middle", textStyle: { color: "#8b949e", fontSize: 13 } } });
+    return;
+  }
+  var d = data.data;
+  var hm = [];
+  d.dev_matrix.forEach(function (row, i) {
+    row.forEach(function (v, j) { if (v !== null) hm.push([j, i, v]); });
+  });
+  var maxAbs = Math.max.apply(null, [5].concat(hm.map(function (x) { return Math.abs(x[2]); })));
+  chart.setOption({
+    animation: false,
+    tooltip: { position: "top", valueFormatter: function (v) { return v + "%"; } },
+    visualMap: {
+      min: -maxAbs, max: maxAbs, calculable: true, orient: "horizontal", left: "center", bottom: 2,
+      inRange: { color: ["#22c55e", "#161b22", "#ef4444"] }, textStyle: { color: "#8b949e", fontSize: 10 },
+      formatter: function (v) { return v + "%"; },
+    },
+    grid: { left: 70, right: 20, top: 20, bottom: 60 },
+    xAxis: { type: "category", data: d.moneyness, axisLabel: AXIS.axisLabel, splitArea: { show: true, areaStyle: { color: ["#161b22", "#1a2029"] } } },
+    yAxis: { type: "category", data: d.expiries, axisLabel: AXIS.axisLabel, splitArea: { show: true, areaStyle: { color: ["#161b22", "#1a2029"] } } },
+    series: [{ type: "heatmap", data: hm,
+      label: { show: hm.length <= 60, fontSize: 9, color: "#e6edf3", formatter: function (p) { return p.value[2].toFixed(1); } },
+      emphasis: { itemStyle: { borderColor: "#fff", borderWidth: 1 } } }],
+  });
+}
+
+/* ==================== 信号面板（今日建议） ==================== */
+function renderSignals(data) {
+  var box = document.getElementById("signalTable");
+  if (!data || !data.ok || !data.data) {
+    box.innerHTML = '<div class="empty-tip">暂无信号数据</div>';
+    return;
+  }
+  var buys = data.data.buys || [];
+  var sells = data.data.sells || [];
+  var summary = data.summary || "";
+
+  // 方向判断：与后端摘要一致（隐含波动率 vs 预测波动率），分组列表给具体合约（相对价值）
+  var banner;
+  if (summary.indexOf("偏多") >= 0) {
+    banner = '<div class="advice-banner long"><span class="arrow">▲</span> 今日建议：偏多 — 市场隐含波动率低于模型预测，期权整体偏便宜，可关注买入</div>';
+  } else if (summary.indexOf("偏空") >= 0) {
+    banner = '<div class="advice-banner short"><span class="arrow">▼</span> 今日建议：偏空 — 市场隐含波动率高于模型预测，期权整体偏贵，可关注卖出</div>';
+  } else {
+    banner = '<div class="advice-banner neutral"><span class="arrow">◆</span> 今日建议：中性 — 市场隐含波动率与模型预测接近，观望为主</div>';
+  }
+
+  function groupHtml(title, cls, list, dirName) {
+    var top = list.slice(0, 5);
+    var rows = top.map(function (q) {
+      return "<tr><td>" + esc(q.cn_name || q.cp) + "</td>" +
+        '<td class="num">' + fmtNum(q.market_price, 3) + "</td>" +
+        '<td class="num">' + fmtNum(q.model_price, 3) + "</td>" +
+        '<td class="num" style="color:' + (q.deviation_pct >= 0 ? "var(--red)" : "var(--green)") + '">' + fmtPctRaw(q.deviation_pct, 1) + "</td></tr>";
+    }).join("");
+    if (!top.length) {
+      rows = '<tr><td colspan="4" style="color:var(--faint)">当前无显著' + dirName + '信号</td></tr>';
+    }
+    return '<div class="advice-group"><div class="advice-title ' + cls + '">' + title +
+      '<span class="cnt">' + list.length + ' 条</span></div>' +
+      '<table><thead><tr><th>合约</th><th class="num">市场价</th><th class="num">模型价</th><th class="num">偏差</th></tr></thead><tbody>' +
+      rows + "</tbody></table></div>";
+  }
+
+  box.innerHTML = banner +
+    groupHtml("买入建议（相对便宜）", "buy", buys, "买入") +
+    groupHtml("卖出建议（相对偏贵）", "sell", sells, "卖出") +
+    '<div class="advice-note"><b>怎么看：</b>偏差 = (TFBSM模型价 - 市场价) / 市场价，已减去市场均值（相对价值）。<br>' +
+    "偏差<b>高于</b>市场均值 → 该合约相对便宜，考虑<b>买入</b>；偏差<b>低于</b>市场均值 → 相对偏贵，考虑<b>卖出</b>。<br>" +
+    "已过滤价格过低(&lt;0.05元)和偏差极端(±40%)的噪声合约。<br>" +
+    "模型参数：α=" + fmtNum(data.alpha) + "，预测σ=" + fmtPct(data.pred_vol, 1) + "<br>" +
+    "整体方向：" + esc(summary) + "</div>";
+}
+
+/* ==================== 期权链报价（全量合约表格） ==================== */
+function renderOptions(data) {
+  var box = document.getElementById("optionsTable");
+  if (!box) return;
+  if (!data || !data.ok || !data.data || data.data.length === 0) {
+    box.innerHTML = '<div class="empty-tip">暂无期权链数据</div>';
+    return;
+  }
+  var quotes = data.data;
+  var rows = quotes.map(function (q) {
+    var sig = "";
+    if (q.signal === "buy") sig = '<span class="tag buy">买入</span>';
+    else if (q.signal === "sell") sig = '<span class="tag sell">卖出</span>';
+    var cpTag = q.cp === "call" ? '<span class="tag call">购</span>' : '<span class="tag put">沽</span>';
+    return "<tr>" +
+      "<td>" + esc(q.cn_name || (q.cp + " " + q.K)) + "</td>" +
+      "<td>" + cpTag + "</td>" +
+      '<td class="num">' + fmtNum(q.K, 3) + "</td>" +
+      "<td>" + esc(q.expire_date || "") + "</td>" +
+      '<td class="num">' + fmtNum(q.market_price, 4) + "</td>" +
+      '<td class="num">' + fmtNum(q.model_price, 4) + "</td>" +
+      '<td class="num" style="color:' + (q.deviation_pct >= 0 ? "var(--red)" : "var(--green)") + ';font-weight:600">' + fmtPctRaw(q.deviation_pct, 1) + "</td>" +
+      '<td class="num">' + (q.iv > 0 ? (q.iv * 100).toFixed(1) + "%" : "-") + "</td>" +
+      '<td class="num">' + (q.volume || 0) + "</td>" +
+      "<td>" + sig + "</td></tr>";
+  }).join("");
+  box.innerHTML = "<table><thead><tr>" +
+    "<th>合约</th><th>类型</th><th class=\"num\">行权价</th><th>到期日</th><th class=\"num\">市场价</th><th class=\"num\">模型价</th><th class=\"num\">偏差</th><th class=\"num\">IV</th><th class=\"num\">成交量</th><th>信号</th>" +
+    "</tr></thead><tbody>" + rows + "</tbody></table>";
+}
+
+/* ==================== 日志 ==================== */
+function renderLogs(data) {
+  var box = document.getElementById("logBox");
+  if (!data || !data.ok || data.data.length === 0) {
+    box.innerHTML = '<div class="empty-tip">暂无日志</div>';
+    return;
+  }
+  box.innerHTML = data.data.map(function (l) {
+    return '<div class="log-line ' + esc(l.level) + '"><span class="t">' + esc(l.ts) + "</span>" + esc(l.message) + "</div>";
+  }).join("");
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ==================== 数据刷新 ==================== */
+var apiTargets = [
+  ["/api/overview", renderMetrics],
+  ["/api/price_history", renderKline],
+  ["/api/price_ticks", renderTicks],
+  ["/api/params_history", renderParams],
+  ["/api/volatility", renderVol],
+  ["/api/smile", renderSmile],
+  ["/api/surface", renderSurface],
+  ["/api/surface", renderSurface3D],
+  ["/api/surface", renderHeatmap],
+  ["/api/signals", renderSignals],
+  ["/api/options", renderOptions],
+  ["/api/logs", renderLogs],
+];
+
+function refreshAll() {
+  if (!echartsReady()) { setTimeout(refreshAll, 500); return; }
+  apiGet("/api/status").then(renderStatus).catch(function () {});
+  apiTargets.forEach(function (t) {
+    apiGet(t[0]).then(t[1]).catch(function (e) { console.error(t[0], e); });
+  });
+}
+
+function runNow() {
+  var btn = document.getElementById("btnRun");
+  btn.disabled = true; btn.textContent = "已触发...";
+  var t = pageToken();
+  var url = "/api/run_now" + (t ? "?token=" + encodeURIComponent(t) : "");
+  fetch(url, { method: "POST" }).then(function (r) { return r.json(); }).then(function (res) {
+    btn.textContent = "立即运行流水线";
+    setTimeout(function () { btn.disabled = false; refreshAll(); }, 2000);
+  }).catch(function () {
+    btn.textContent = "立即运行流水线"; btn.disabled = false;
+  });
+}
+
+/* ==================== 启动 ==================== */
+window.addEventListener("resize", function () {
+  Object.keys(charts).forEach(function (k) { if (charts[k]) charts[k].resize(); });
+});
+
+// PWA Service Worker 注册（HTTPS 或 localhost 下生效，普通 HTTP 环境自动跳过）
+if ("serviceWorker" in navigator &&
+    (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+  navigator.serviceWorker.register("sw.js").catch(function () {});
+}
+
+refreshAll();
+setInterval(refreshAll, REFRESH_MS);
+setInterval(function () {
+  apiGet("/api/status").then(renderStatus).catch(function () {});
+}, 1000);
+
+/* ==================== 移动端：安装引导 / 横屏提示 ==================== */
+(function () {
+  var tip = document.getElementById("mobileTip");
+  if (!tip) return;
+  var isMobile = /Android|iPhone|iPad|iPod|HarmonyOS|Mobile/i.test(navigator.userAgent);
+  var isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  var deferredPrompt = null;
+
+  // 1. 安装引导：捕获 beforeinstallprompt（安卓 Chrome/Edge）
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (isMobile && !isStandalone && !localStorage.getItem("tfbsm_tip_closed")) {
+      tip.innerHTML = "📱 可添加到主屏幕，像 App 一样全屏使用";
+      var b = document.createElement("button");
+      b.className = "tip-btn";
+      b.textContent = "安装";
+      b.onclick = function () {
+        if (deferredPrompt) { deferredPrompt.prompt(); }
+      };
+      tip.appendChild(b);
+      var c = document.createElement("span");
+      c.className = "tip-close";
+      c.textContent = "✕";
+      c.onclick = function () { tip.classList.remove("show"); localStorage.setItem("tfbsm_tip_closed", "1"); };
+      tip.appendChild(c);
+      tip.classList.add("show");
+    }
+  });
+
+  // 2. 横屏建议：手机上竖屏时提示（图表较多，横屏看更舒适）
+  function checkOrient() {
+    if (!isMobile || isStandalone) return;
+    if (!deferredPrompt && localStorage.getItem("tfbsm_tip_closed")) return;
+    var portrait = window.innerHeight > window.innerWidth;
+    if (portrait && tip.classList.contains("show")) return;
+    if (portrait && !tip.classList.contains("show")) {
+      tip.innerHTML = "↻ 建议横屏查看，图表显示更完整";
+      var c = document.createElement("span");
+      c.className = "tip-close";
+      c.textContent = "✕";
+      c.onclick = function () { tip.classList.remove("show"); localStorage.setItem("tfbsm_tip_closed", "1"); };
+      tip.appendChild(c);
+      tip.classList.add("show");
+    } else if (!portrait) {
+      tip.classList.remove("show");
+    }
+  }
+  window.addEventListener("resize", checkOrient);
+  checkOrient();
+
+  // 3. 横屏时通知 ECharts 重新布局
+  window.addEventListener("orientationchange", function () {
+    setTimeout(function () {
+      Object.keys(charts).forEach(function (k) { if (charts[k]) charts[k].resize(); });
+    }, 300);
+  });
+})();
+</script>
+</body>
+</html>

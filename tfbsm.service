@@ -1,0 +1,17 @@
+[Unit]
+Description=TFBSM Options Trading System
+After=network.target
+
+[Service]
+Type=simple
+# 修改为实际部署目录
+WorkingDirectory=/opt/tfbsm_trading
+# 时区：期权到期日与随机种子依赖本地时间
+Environment=TZ=Asia/Shanghai
+# 修改 your_token 为实际访问密码；不需要认证可去掉 --token your_token
+ExecStart=/usr/bin/python3 /opt/tfbsm_trading/app.py --host 0.0.0.0 --port 8000 --token your_token
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
