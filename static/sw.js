@@ -1,5 +1,5 @@
 /* TFBSM 系统 Service Worker — 缓存静态壳（页面结构离线可用，数据仍需在线） */
-var CACHE = "tfbsm-shell-v4";
+var CACHE = "tfbsm-shell-v2";
 var SHELL = ["./", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", function (e) {
